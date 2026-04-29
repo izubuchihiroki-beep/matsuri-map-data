@@ -1,0 +1,1 @@
+{"name": "ThePlaces 祭りマップ", "short_name": "祭りマップ", "start_url": "/matsuri-map-data/", "display": "standalone", "background_color": "#ffffff", "theme_color": "#e74c3c", "icons": [{"src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='75'>🏮</text></svg>", "sizes": "any", "type": "image/svg+xml"}]}
