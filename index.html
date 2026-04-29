@@ -1,0 +1,1869 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ThePlaces Map</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏮</text></svg>">
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="祭りマップ">
+<meta name="theme-color" content="#e74c3c">
+<style>
+#map{height:100vh;width:100%;}
+body{margin:0;padding:0;font-family:sans-serif;}
+.fp{position:fixed;top:10px;left:10px;z-index:1000;background:#fff;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.25);padding:8px;width:400px;box-sizing:border-box;max-height:calc(100vh - 80px);overflow-y:auto;}
+@media(max-width:600px){
+  .fp{display:none !important;}
+  .bs-wrap{display:flex !important;}
+}
+.bs-wrap{
+  display:none;
+  position:fixed;bottom:0;left:0;right:0;z-index:1000;
+  flex-direction:column;
+  max-height:70vh;
+  pointer-events:none;
+}
+.bs-handle{
+  pointer-events:all;
+  background:#fff;
+  border-radius:12px 12px 0 0;
+  box-shadow:0 -2px 8px rgba(0,0,0,.15);
+  padding:6px 12px;
+  display:flex;align-items:center;gap:8px;
+}
+.bs-handle-bar{
+  width:40px;height:4px;background:#ddd;border-radius:2px;margin:0 auto 4px;
+}
+.bs-handle-row{display:flex;align-items:center;gap:6px;width:100%;}
+.bs-body{
+  pointer-events:all;
+  background:#fff;
+  overflow-y:auto;
+  box-shadow:0 -2px 8px rgba(0,0,0,.1);
+  padding:8px 10px 16px;
+  transition:max-height .3s ease;
+}
+.bs-body.collapsed{max-height:0;overflow:hidden;padding:0 10px;}
+.bs-tab-row{display:flex;gap:4px;margin-bottom:8px;overflow-x:auto;}
+.bs-tab{flex:0 0 auto;padding:6px 12px;border:1.5px solid #ddd;border-radius:20px;background:#fff;cursor:pointer;font-size:12px;font-weight:bold;color:#666;}
+.bs-tab.on.t1{background:#FF8C42;color:#fff;border-color:#FF8C42;}
+.bs-tab.on.t2{background:#1D9E75;color:#fff;border-color:#1D9E75;}
+.bs-tab.on.t3{background:#8B6914;color:#fff;border-color:#8B6914;}
+.bs-tab.on.t4{background:#534AB7;color:#fff;border-color:#534AB7;}
+.bs-tab.on.t5{background:#E91E63;color:#fff;border-color:#E91E63;}
+.bs-section{margin-bottom:8px;}
+.bs-sec-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;}
+.bs-sec-label{font-size:10px;font-weight:bold;color:#999;}
+.bs-grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;}
+.bs-grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;}
+.bs-btn{padding:8px 4px;border:1px solid #ddd;border-radius:6px;background:#fff;cursor:pointer;font-size:12px;font-weight:bold;text-align:center;color:#555;}
+.bs-btn.on.t1{background:#FF8C42;color:#fff;border-color:#FF8C42;}
+.bs-btn.on.t2{background:#FF4500;color:#fff;border-color:#FF4500;}
+.bs-btn.on.nat{background:#1D9E75;color:#fff;border-color:#1D9E75;}
+.bs-btn.on.his{background:#8B6914;color:#fff;border-color:#8B6914;}
+.bs-btn.on.sat{background:#534AB7;color:#fff;border-color:#534AB7;}
+.bs-btn.on.hana{background:#E91E63;color:#fff;border-color:#E91E63;}
+.bs-kind-row{display:flex;gap:4px;margin-bottom:6px;}
+.bs-kind{flex:1;padding:7px;border-radius:6px;border:2px solid #ddd;background:#fff;cursor:pointer;font-size:12px;font-weight:bold;text-align:center;}
+.bs-kind.km{border-color:#FF8C42;color:#FF8C42;}
+.bs-kind.km.on{background:#FF8C42;color:#fff;}
+.bs-kind.kh{border-color:#FF4500;color:#FF4500;}
+.bs-kind.kh.on{background:#FF4500;color:#fff;}
+.bs-clr{padding:5px 10px;border:1.5px solid #ea4335;border-radius:4px;background:#fff;cursor:pointer;font-size:11px;font-weight:bold;color:#ea4335;}
+.bs-selall{font-size:10px;color:#aaa;font-weight:bold;cursor:pointer;border:1px solid #aaa;border-radius:3px;padding:1px 5px;}
+.bs-selall.active{color:#ea4335;border-color:#ea4335;}
+.top-row{display:flex;align-items:center;gap:3px;margin-bottom:0;}
+.clr-btn{padding:5px 7px;border:1.5px solid #ea4335;border-radius:4px;background:#fff;cursor:pointer;font-size:11px;font-weight:bold;color:#ea4335;white-space:nowrap;transition:all .15s;}
+.clr-btn:hover{background:#fdf3f2;}
+.fold-btn{padding:5px 7px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;font-size:11px;color:#888;transition:all .15s;}
+.fold-btn:hover{background:#f5f5f5;}
+.body-wrap{overflow:hidden;transition:max-height .25s ease;}
+.section{border-top:1px solid #eee;padding-top:6px;margin-top:6px;}
+.sec-label{font-size:10px;font-weight:bold;color:#999;margin-bottom:4px;letter-spacing:.5px;}
+.kind-row{display:flex;gap:4px;margin-bottom:5px;}
+.kind{flex:1;padding:5px;border-radius:4px;border:2px solid #ddd;background:#fff;cursor:pointer;font-size:11px;font-weight:bold;text-align:center;transition:all .15s;}
+.kind.km{border-color:#FF8C42;color:#FF8C42;}
+.kind.km.on{background:#FF8C42;color:#fff;}
+.kind.kh{border-color:#FF4500;color:#FF4500;}
+.kind.kh.on{background:#FF4500;color:#fff;}
+.mgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;}
+.mbtn{padding:6px 2px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;font-size:11px;font-weight:bold;text-align:center;color:#555;transition:all .15s;min-width:0;overflow:hidden;}
+.mbtn:hover{background:#f5f5f5;}
+.mbtn.on.km{background:#FF8C42;color:#fff;border-color:#FF8C42;}
+.mbtn.on.kh{background:#FF4500;color:#fff;border-color:#FF4500;}
+.igrid{display:grid;grid-template-columns:repeat(2,1fr);gap:3px;}
+.ibtn{padding:6px 4px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;font-size:11px;font-weight:bold;text-align:center;color:#555;transition:all .15s;min-width:0;overflow:hidden;}
+.ibtn:hover{background:#f5f5f5;}
+.ibtn.on.nat{background:#1D9E75;color:#fff;border-color:#1D9E75;}
+.ibtn.on.his{background:#8B6914;color:#fff;border-color:#8B6914;}
+.ibtn.on.sat{background:#534AB7;color:#fff;border-color:#534AB7;}
+.empty-msg{padding:10px;text-align:center;font-size:11px;color:#aaa;margin-top:4px;}
+.popup-link{color:#1a73e8;text-decoration:none;font-weight:bold;}
+.popup-link:hover{text-decoration:underline;}
+.custom-control{background:#fff;border-radius:4px;box-shadow:0 2px 6px rgba(0,0,0,.3);margin:10px;padding:10px 15px;font-weight:bold;cursor:pointer;border:none;font-size:14px;}
+.gm-svpc, .gm-style-cc, button[title="キーボード ショートカット"], .gm-bundled-control, .gm-bundled-control-on-bottom{display:none!important;}
+.gm-ui-hover-effect{display:none!important;}
+.search-box{display:flex;gap:6px;align-items:center;margin-bottom:8px;padding:4px 0;}
+.search-box input{flex:1;border:1px solid #ddd;border-radius:4px;padding:6px 8px;font-size:13px;outline:none;}
+.search-box input:focus{border-color:#1a73e8;}
+.search-btn{padding:6px 12px;background:#1a73e8;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-weight:bold;white-space:nowrap;}
+.search-btn:hover{background:#1557b0;}
+.add-popup{line-height:1.7;min-width:220px;max-width:260px;font-size:13px;}
+.add-popup select{width:100%;padding:4px;border:1px solid #ddd;border-radius:4px;font-size:12px;margin-bottom:4px;}
+.add-popup input[type=text]{width:100%;padding:4px;border:1px solid #ddd;border-radius:4px;font-size:12px;margin-bottom:4px;box-sizing:border-box;}
+.add-popup textarea{width:100%;padding:4px;border:1px solid #ddd;border-radius:4px;font-size:12px;margin-bottom:4px;box-sizing:border-box;resize:vertical;}
+.add-popup button{width:100%;padding:6px;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;}
+.btn-add{background:#34a853;color:#fff;margin-bottom:4px;}
+.btn-add:hover{background:#2d8f47;}
+.btn-cancel{background:#fff;color:#666;border:1px solid #ddd !important;}
+.menu-wrap{position:fixed;bottom:0;left:0;right:0;z-index:1000;background:#fff;box-shadow:0 -2px 8px rgba(0,0,0,.15);pointer-events:all;border-radius:12px 12px 0 0;}
+.menu-top{display:flex;gap:4px;padding:6px 8px 6px;align-items:center;border-bottom:1px solid #eee;}
+.menu-top input{flex:1;border:1px solid #ddd;border-radius:4px;padding:6px 8px;font-size:13px;outline:none;}
+.m-search-btn{padding:6px 12px;background:#1a73e8;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-weight:bold;white-space:nowrap;}
+.m-selall-btn{padding:5px 8px;border:1.5px solid #aaa;border-radius:4px;background:#fff;cursor:pointer;font-size:11px;font-weight:bold;color:#aaa;white-space:nowrap;}
+.m-selall-btn.active{border-color:#ea4335;color:#ea4335;}
+.m-fold-btn{padding:5px 8px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;font-size:11px;color:#888;}
+.menu-body{overflow-y:auto;max-height:calc(50vh - 110px);transition:max-height .3s ease;padding:4px 0 8px;}
+.menu-body.collapsed{max-height:0;overflow:hidden;padding:0;}
+.menu-section{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;padding:3px 6px;}
+.menu-section.sep{margin-top:6px;}
+.m-label{display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:#666;text-align:center;line-height:1.3;}
+.m-label.sel{border:1px solid #aaa;border-radius:4px;color:#aaa;font-size:10px;padding:2px;cursor:pointer;}
+.m-label.sel.on{border-color:#ea4335;color:#ea4335;}
+.m-btn{padding:7px 2px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;font-size:11px;font-weight:bold;text-align:center;color:#555;line-height:1.2;}
+.m-btn.empty{border:none;background:transparent;cursor:default;}
+.m-btn.on.mat{background:#FF8C42;color:#fff;border-color:#FF8C42;}
+.m-btn.on.han{background:#FF4500;color:#fff;border-color:#FF4500;}
+.m-btn.on.nat{background:#1D9E75;color:#fff;border-color:#1D9E75;}
+.m-btn.on.his{background:#8B6914;color:#fff;border-color:#8B6914;}
+.m-btn.on.sat{background:#534AB7;color:#fff;border-color:#534AB7;}
+.m-btn.on.hana{background:#E91E63;color:#fff;border-color:#E91E63;}
+.m-kind{border-radius:4px;padding:7px 2px;font-size:11px;font-weight:bold;text-align:center;cursor:pointer;}
+.m-kind.mat{border:2px solid #FF8C42;color:#FF8C42;}
+.m-kind.mat.on{background:#FF8C42;color:#fff;}
+.m-kind.han{border:2px solid #FF4500;color:#FF4500;}
+.m-kind.han.on{background:#FF4500;color:#fff;}
+@media(min-width:601px){
+  .fp{display:block !important;}
+  .menu-wrap{display:none !important;}
+  .fp-grid-sec{display:grid;grid-template-columns:repeat(5,1fr);gap:3px;padding:3px 4px;}
+  .fp-grid-sec.sep{margin-top:6px;}
+  .fp-btn{padding:6px 2px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;font-size:11px;font-weight:bold;text-align:center;color:#555;line-height:1.2;overflow:hidden;}
+  .fp-btn.empty{border:none;background:transparent;cursor:default;}
+  .fp-btn.on.mat{background:#FF8C42;color:#fff;border-color:#FF8C42;}
+  .fp-btn.on.han{background:#FF4500;color:#fff;border-color:#FF4500;}
+  .fp-btn.on.nat{background:#1D9E75;color:#fff;border-color:#1D9E75;}
+  .fp-btn.on.his{background:#8B6914;color:#fff;border-color:#8B6914;}
+  .fp-btn.on.sat{background:#534AB7;color:#fff;border-color:#534AB7;}
+  .fp-btn.on.hana{background:#E91E63;color:#fff;border-color:#E91E63;}
+  .fp-kind{border-radius:4px;padding:6px 2px;font-size:11px;font-weight:bold;text-align:center;cursor:pointer;overflow:hidden;}
+  .fp-kind.mat{border:2px solid #FF8C42;color:#FF8C42;}
+  .fp-kind.mat.on{background:#FF8C42;color:#fff;}
+  .fp-kind.han{border:2px solid #FF4500;color:#FF4500;}
+  .fp-kind.han.on{background:#FF4500;color:#fff;}
+  .fp-sel{border:1px solid #aaa;border-radius:4px;color:#aaa;font-size:10px;padding:3px 2px;cursor:pointer;text-align:center;font-weight:bold;}
+  .fp-sel.on{border-color:#ea4335;color:#ea4335;}
+  .fp-lbl{display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:bold;color:#666;text-align:center;line-height:1.3;white-space:pre-wrap;}
+}
+@media(max-width:600px){.fp{display:none !important;}.bs-wrap{display:none !important;}.menu-wrap{display:block !important;}}
+@keyframes loadPulse{0%,100%{opacity:1}50%{opacity:.25}}
+.load-dot{width:12px;height:12px;border-radius:50%;background:#bbb;animation:loadPulse 1.2s infinite;flex-shrink:0;align-self:center;cursor:default;}
+.load-dot.done{background:#4caf50;animation:none;}
+#zoom-msg{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(255,255,255,0.88);border-radius:10px;padding:14px 24px;font-size:14px;color:#666;box-shadow:0 2px 10px rgba(0,0,0,.15);z-index:1000;pointer-events:none;display:none;}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<div id="zoom-msg">ズームインすると祭りが表示されます</div>
+<script>
+var MY_API_KEY = "AIzaSyAMBPa_T_URVyJNn1lHnXjzDiEZoKPNPSw";
+var GAS_URL    = 'https://script.google.com/macros/s/AKfycbw0HVTw6Ztf-CSv_rJ7Tu4cpb2Qd4ISwy6JCph-fGTXfkxmvJtViUx7YUZ3ml92aBwd/exec';
+var SH_MAP_URL = 'https://wherethereisawillthereisaway2026.github.io/shakuhachi-map-data/';
+function _gasPost(payload) {
+  return fetch(GAS_URL, { method: 'POST', body: JSON.stringify(payload) }).then(function(r){ return r.json(); });
+}
+// URLSearchParams で相互リンクパラメータを読み込む
+(function() {
+  var p = new URLSearchParams(window.location.search);
+  if (p.get('lat') && p.get('lng')) {
+    window._xLat = parseFloat(p.get('lat'));
+    window._xLng = parseFloat(p.get('lng'));
+    window._xZ   = p.get('z') ? parseInt(p.get('z')) : 12;
+  }
+})();
+var map, infoWindow;
+var activeMarkers = [];
+var markerPool = new Map();   // key: "source:rowIndex" → marker（差分更新用プール）
+var searchMarkers = [];
+var allData = [];
+var dataLoaded = false;       // idle早期発火対策フラグ
+var idleTimer = null;
+var _undoStack = [];
+var _pcUndoBtn = null;
+var _mUndoBtn = null;
+var autocompleteInstance = null;  // 🔸 グローバル Autocomplete インスタンス
+
+var activeTabs = new Set(['t1','t2','t3','t4','t5']);
+var matsuriOn = false;
+var hanabiOn = false;
+var activeMonths = new Set();
+var activeNat = new Set();
+var activeHis = new Set();
+var activeSat = new Set();
+var activeHana = new Set();
+var isPanelOpen = true;
+
+var NAT_CATS = [
+  {code:12,label:'✨ 蛍'},
+  {code:13,label:'🍁 紅葉'},
+  {code:14,label:'☁️ 雲海'},
+  {code:16,label:'🌇 夕陽'},
+  {code:22,label:'🌕 名月'},
+  {code:23,label:'💫 星景'},
+  {code:21,label:'🌃 夜景'},
+  {code:17,label:'💧 滝'},
+  {code:18,label:'🌳 巨木'},
+  {code:11,label:'🌾 棚田'},
+  {code:19,label:'🪨 奇岩'},
+  {code:20,label:'🌊 洞窟'},
+  {code:15,label:'🧊 氷瀑'},
+  {code:25,label:'🌋 ｶﾙﾃﾞﾗ'}
+];
+var HANA_CATS = [
+  {code:82,label:'🪴 ｼｸﾗﾒﾝ'},
+  {code:81,label:'❄️ ｻｻﾞﾝｶ'},
+  {code:70,label:'🤍 水仙'},
+  {code:71,label:'💛 ﾛｳﾊﾞｲ'},
+  {code:72,label:'🔴 梅'},
+  {code:62,label:'🎀 河津桜'},
+  {code:73,label:'🌱 菜の花'},
+  {code:61,label:'🌺 椿'},
+  {code:10,label:'🌸 桜'},
+  {code:63,label:'🌷 ﾁｭｰﾘｯﾌﾟ'},
+  {code:74,label:'💠 ﾈﾓﾌｨﾗ'},
+  {code:75,label:'🩷 芝桜'},
+  {code:64,label:'🍇 藤'},
+  {code:24,label:'🪻 紫陽花'},
+  {code:76,label:'💜 花菖蒲'},
+  {code:77,label:'🪻 ﾗﾍﾞﾝﾀﾞｰ'},
+  {code:78,label:'🫧 梅花藻'},
+  {code:65,label:'🪷 睡蓮'},
+  {code:66,label:'🌻 向日葵'},
+  {code:67,label:'❤️ 彼岸花'},
+  {code:79,label:'🍂 ｺｽﾓｽ'},
+  {code:68,label:'✴️ 金木犀'},
+  {code:80,label:'🧶 ｺｷｱ'},
+  {code:69,label:'🌼 菊'}
+];
+var HIS_CATS = [
+  {code:31,label:'🏯 城'},
+  {code:30,label:'🚃 鉄道'},
+  {code:40,label:'♨️ 温泉'},
+  {code:32,label:'🏘️ 伝統'},
+  {code:33,label:'🏚️ 廃墟'},
+  {code:34,label:'📽️ 映画'}
+];
+var SAT_CATS = [
+  {code:41,label:'📸 撮影'},
+  {code:47,label:'🗼 展望台'},
+  {code:46,label:'🏄 SUP'},
+  {code:43,label:'🚁 ドロ'},
+  {code:42,label:'🚗 車'},
+  {code:44,label:'⭐ Wish'}
+];
+
+var iconCache = {};
+var MONTH_COLORS = {
+  1:'#FF6B6B',2:'#FF8C42',3:'#FFD93D',4:'#6BCB77',
+  5:'#4D96FF',6:'#9D84B7',7:'#FF69B4',8:'#FF4500',
+  9:'#20B2AA',10:'#FFB6C1',11:'#8B4513',12:'#DC143C'
+};
+var CAT_COLORS = {
+  99:'#9E9E9E',
+  10:'#E91E63',11:'#8B7355',12:'#FFD700',13:'#FF6347',14:'#87CEEB',15:'#4169E1',16:'#FF8C00',17:'#1E90FF',18:'#228B22',19:'#8B4513',20:'#4682B4',21:'#191970',22:'#FFD700',23:'#000080',24:'#9966CC',
+  30:'#8B4513',31:'#8B4513',32:'#D2B48C',33:'#A9A9A9',34:'#DC143C',40:'#FF6347',
+  41:'#FF69B4',42:'#FF6600',43:'#78909C',44:'#00BCD4',46:'#E91E63',47:'#1565C0',
+  61:'#C0392B',62:'#FF85AB',63:'#FF6B9D',64:'#8B5CF6',65:'#6366F1',66:'#F59E0B',67:'#DC2626',68:'#F97316',69:'#EAB308',70:'#A5D8FF',71:'#FDE68A',72:'#EF4444',73:'#84CC16',74:'#60A5FA',75:'#F472B6',76:'#7C3AED',77:'#A78BFA',78:'#67E8F9',79:'#FB923C',80:'#B45309',81:'#94A3B8',82:'#E879F9'
+};
+var CAT_LABELS = {};
+NAT_CATS.concat(HIS_CATS).concat(SAT_CATS).concat(HANA_CATS).forEach(function(c){ CAT_LABELS[c.code] = c.label; });
+CAT_LABELS[99] = '未設定';
+
+function getMarkerIcon(code) {
+  if (iconCache[code]) return iconCache[code];
+  var isMatsuri = code === 1;
+  var isHanabi  = code === 2;
+  var color, label, shape;
+  
+  if (isMatsuri) {
+    color = '#FF8C42';
+    label = '🏮';
+    shape = 'circle';
+  } else if (isHanabi) {
+    color = '#FF4500';
+    label = '🎆';
+    shape = 'star';
+  } else {
+    color = CAT_COLORS[code] || '#888';
+    label = (CAT_LABELS[code] || '').slice(0,2);
+    shape = 'circle';
+  }
+  
+  var svg;
+  if (shape === 'star') {
+    svg = '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">'
+      + '<polygon points="20,3 24,14 36,14 27,21 30,33 20,26 10,33 13,21 4,14 16,14" fill="' + color + '" stroke="white" stroke-width="1.5"/>'
+      + '<text x="20" y="24" font-size="16" font-weight="bold" fill="white" text-anchor="middle">' + label + '</text>'
+      + '</svg>';
+  } else {
+    svg = '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 40 40">'
+      + '<circle cx="20" cy="20" r="18" fill="' + color + '" stroke="white" stroke-width="2"/>'
+      + '<text x="20" y="25" font-size="16" font-weight="bold" fill="white" text-anchor="middle">' + label + '</text>'
+      + '</svg>';
+  }
+  
+  var blob = new Blob([svg], {type:'image/svg+xml'});
+  iconCache[code] = {url: URL.createObjectURL(blob), scaledSize: new google.maps.Size(40,40), anchor: new google.maps.Point(20,40)};
+  return iconCache[code];
+}
+
+function isVisible(code, month) {
+  if (code === 1) return matsuriOn && activeMonths.has(month);
+  if (code === 2) return hanabiOn && activeMonths.has(month);
+  if (activeNat.has(code)) return true;
+  if (activeHis.has(code)) return true;
+  if (activeSat.has(code)) return true;
+  if (activeHana.has(code)) return true;
+  return false;
+}
+
+function updateMarkers() {
+  saveFilterState();
+  renderMarkers();
+}
+
+var bodyWrap;
+
+function buildPanel() {
+  var container = document.createElement('div');
+  container.className = 'fp';
+
+  // 🔸 現在地ボタン
+  var pcLocBtn = document.createElement('button');
+  pcLocBtn.textContent = '📍';
+  pcLocBtn.style.cssText = 'padding:4px 6px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;font-size:14px;white-space:nowrap;flex-shrink:0;';
+  pcLocBtn.addEventListener('click', function(){ window.gotoCurrentLocation && window.gotoCurrentLocation(); });
+
+  var pcSelAllBtn = document.createElement('div');
+  pcSelAllBtn.style.cssText = 'padding:4px 6px;border:1.5px solid #aaa;border-radius:4px;background:#fff;cursor:pointer;font-size:11px;font-weight:bold;color:#aaa;white-space:nowrap;flex-shrink:0;';
+  pcSelAllBtn.textContent = '全選択';
+
+  function pcIsAllSelected() {
+    return matsuriOn && hanabiOn && activeMonths.size===12
+      && NAT_CATS.every(function(c){ return activeNat.has(c.code); })
+      && HIS_CATS.every(function(c){ return activeHis.has(c.code); })
+      && SAT_CATS.every(function(c){ return activeSat.has(c.code); })
+      && HANA_CATS.every(function(c){ return activeHana.has(c.code); });
+  }
+  function pcUpdateSelAll() {
+    if (pcIsAllSelected()) {
+      pcSelAllBtn.style.borderColor='#ea4335'; pcSelAllBtn.style.color='#ea4335';
+    } else {
+      pcSelAllBtn.style.borderColor='#aaa'; pcSelAllBtn.style.color='#aaa';
+    }
+  }
+  pcSelAllBtn.addEventListener('click', function() {
+    if (pcIsAllSelected()) {
+      activeMonths.clear(); activeNat.clear(); activeHis.clear(); activeSat.clear(); activeHana.clear();
+      matsuriOn=false; hanabiOn=false;
+    } else {
+      for(var i=1;i<=12;i++) activeMonths.add(i);
+      matsuriOn=true; hanabiOn=true;
+      NAT_CATS.forEach(function(c){ activeNat.add(c.code); });
+      HIS_CATS.forEach(function(c){ activeHis.add(c.code); });
+      SAT_CATS.forEach(function(c){ activeSat.add(c.code); });
+      HANA_CATS.forEach(function(c){ activeHana.add(c.code); });
+    }
+    pcUpdateSelAll();
+    pcRenderBody();
+    updateMarkers();
+  });
+
+  var foldBtn = document.createElement('div');
+  foldBtn.className = 'fold-btn';
+  foldBtn.textContent = '▲';
+  foldBtn.addEventListener('click', function() {
+    isPanelOpen = !isPanelOpen;
+    foldBtn.textContent = isPanelOpen ? '▲' : '▼';
+    bodyWrap.style.maxHeight = isPanelOpen ? '4000px' : '0';
+  });
+
+  var searchBoxPC = document.createElement('div');
+  searchBoxPC.style.cssText = 'display:flex;gap:4px;padding:4px 0;margin-bottom:4px;align-items:center;';
+  
+  var pcInput = document.createElement('input');
+  pcInput.type = 'text';
+  pcInput.placeholder = '検索...';
+  pcInput.style.cssText = 'flex:1;border:1px solid #ddd;border-radius:4px;padding:4px 6px;font-size:12px;outline:none;min-width:0;';
+  
+  var pcSearchBtn = document.createElement('button');
+  pcSearchBtn.textContent = '検索';
+  pcSearchBtn.style.cssText = 'padding:4px 6px;background:#1a73e8;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:bold;white-space:nowrap;';
+
+  setTimeout(function() {
+    var acPC = new google.maps.places.Autocomplete(pcInput, {
+      componentRestrictions: {country:'jp'},
+      fields:['name','place_id','geometry','address_components','formatted_address']
+    });
+    acPC.addListener('place_changed', function() { showSearchResult(acPC.getPlace()); });
+  }, 500);
+
+  pcSearchBtn.addEventListener('click', function() {
+    var svc = new google.maps.places.PlacesService(map);
+    svc.findPlaceFromQuery({
+      query: pcInput.value,
+      fields:['name','place_id','geometry','address_components','formatted_address']
+    }, function(results, status) {
+      if (status === google.maps.places.PlacesServiceStatus.OK && results[0]) showSearchResult(results[0]);
+    });
+  });
+  pcInput.addEventListener('keydown', function(e){ if(e.key==='Enter') pcSearchBtn.click(); });
+
+  var pcSatBtn = document.createElement('button');
+  pcSatBtn.textContent = '🛰';
+  pcSatBtn.title = '航空写真 / 地図 切替';
+  pcSatBtn.style.cssText = 'padding:4px 6px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;font-size:14px;white-space:nowrap;flex-shrink:0;';
+  pcSatBtn.addEventListener('click', function() {
+    var current = map.getMapTypeId();
+    if (current === 'roadmap') {
+      map.setMapTypeId('hybrid');
+      pcSatBtn.style.background = '#1a73e8';
+      pcSatBtn.style.borderColor = '#1a73e8';
+    } else {
+      map.setMapTypeId('roadmap');
+      pcSatBtn.style.background = '#fff';
+      pcSatBtn.style.borderColor = '#ddd';
+    }
+  });
+
+  searchBoxPC.appendChild(pcLocBtn);
+  searchBoxPC.appendChild(pcSatBtn);
+  searchBoxPC.appendChild(pcInput);
+  searchBoxPC.appendChild(pcSearchBtn);
+  searchBoxPC.appendChild(pcSelAllBtn);
+  searchBoxPC.appendChild(foldBtn);
+  container.appendChild(searchBoxPC);
+
+  bodyWrap = document.createElement('div');
+  bodyWrap.className = 'body-wrap';
+  bodyWrap.style.maxHeight = '2000px';
+
+  function pcMakeBtn(label, cls, isOn, onClick) {
+    var b = document.createElement('div');
+    b.className = 'fp-btn' + (isOn ? ' on ' + cls : '');
+    b.textContent = label;
+    b.addEventListener('click', onClick);
+    return b;
+  }
+
+  function pcRenderBody() {
+    bodyWrap.innerHTML = '';
+
+    var allMH = matsuriOn && hanabiOn && activeMonths.size===12;
+
+    function makeMonthRow(labelEl, months, cls) {
+      var sec = document.createElement('div');
+      sec.className = 'fp-grid-sec';
+      if (months[0] > 4) sec.style.paddingTop = '0';
+      sec.appendChild(labelEl);
+      months.forEach(function(mo) {
+        var isOn = activeMonths.has(mo);
+        var btn = document.createElement('div');
+        btn.className = 'fp-btn' + (isOn ? ' on ' + cls : '');
+        btn.textContent = mo + '月';
+        btn.addEventListener('click', function() {
+          if (activeMonths.has(mo)) activeMonths.delete(mo);
+          else activeMonths.add(mo);
+          pcUpdateSelAll(); pcRenderBody(); updateMarkers();
+        });
+        sec.appendChild(btn);
+      });
+      return sec;
+    }
+
+    var sa1 = document.createElement('div');
+    sa1.className = 'fp-sel' + (allMH ? ' on' : '');
+    sa1.textContent = '全選択';
+    sa1.addEventListener('click', function() {
+      if (matsuriOn && hanabiOn && activeMonths.size===12) {
+        matsuriOn=false; hanabiOn=false; activeMonths.clear();
+      } else {
+        matsuriOn=true; hanabiOn=true;
+        for(var i=1;i<=12;i++) activeMonths.add(i);
+      }
+      pcUpdateSelAll(); pcRenderBody(); updateMarkers();
+    });
+    bodyWrap.appendChild(makeMonthRow(sa1, [1,2,3,4], matsuriOn?'mat':'han'));
+
+    var kmBtn = document.createElement('div');
+    kmBtn.className = 'fp-kind mat' + (matsuriOn ? ' on' : '');
+    kmBtn.textContent = '🏮 祭り';
+    kmBtn.addEventListener('click', function() {
+      matsuriOn=!matsuriOn; pcUpdateSelAll(); pcRenderBody(); updateMarkers();
+    });
+    bodyWrap.appendChild(makeMonthRow(kmBtn, [5,6,7,8], matsuriOn?'mat':'han'));
+
+    var khBtn = document.createElement('div');
+    khBtn.className = 'fp-kind han' + (hanabiOn ? ' on' : '');
+    khBtn.textContent = '🎆 花火';
+    khBtn.addEventListener('click', function() {
+      hanabiOn=!hanabiOn; pcUpdateSelAll(); pcRenderBody(); updateMarkers();
+    });
+    bodyWrap.appendChild(makeMonthRow(khBtn, [9,10,11,12], hanabiOn?'han':'mat'));
+
+    function makePCCatRows(cats, activeSet, cls, labelText) {
+      var allOn = cats.every(function(c){ return activeSet.has(c.code); });
+      var btns = cats.map(function(cat) {
+        var b = document.createElement('div');
+        b.className = 'fp-btn' + (activeSet.has(cat.code) ? ' on ' + cls : '');
+        b.textContent = cat.label;
+        b.addEventListener('click', function() {
+          if (activeSet.has(cat.code)) { activeSet.delete(cat.code); b.classList.remove('on',cls); }
+          else { activeSet.add(cat.code); b.classList.add('on',cls); }
+          var nowAll = cats.every(function(c){ return activeSet.has(c.code); });
+          saBtn.className = 'fp-sel' + (nowAll ? ' on' : '');
+          pcUpdateSelAll(); updateMarkers();
+        });
+        return b;
+      });
+
+      var rows = [];
+      for (var i=0; i<btns.length; i+=4) rows.push(btns.slice(i,i+4));
+      var saBtn;
+
+      rows.forEach(function(row, ri) {
+        var sec = document.createElement('div');
+        sec.className = 'fp-grid-sec' + (ri===0 ? ' sep' : '');
+        if (ri > 0) sec.style.paddingTop = '0';
+
+        if (ri === 0) {
+          saBtn = document.createElement('div');
+          saBtn.className = 'fp-sel' + (allOn ? ' on' : '');
+          saBtn.textContent = '全選択';
+          saBtn.addEventListener('click', function() {
+            var nowAll = cats.every(function(c){ return activeSet.has(c.code); });
+            if (nowAll) {
+              cats.forEach(function(c){ activeSet.delete(c.code); });
+              btns.forEach(function(b){ b.classList.remove('on',cls); });
+              saBtn.className = 'fp-sel';
+            } else {
+              cats.forEach(function(c){ activeSet.add(c.code); });
+              btns.forEach(function(b){ b.classList.add('on',cls); });
+              saBtn.className = 'fp-sel on';
+            }
+            pcUpdateSelAll(); updateMarkers();
+          });
+          sec.appendChild(saBtn);
+        } else {
+          var lbl = document.createElement('div');
+          lbl.className = 'fp-lbl';
+          lbl.textContent = ri===1 ? labelText.replace(' ','\n') : '';
+          sec.appendChild(lbl);
+        }
+        row.forEach(function(b){ sec.appendChild(b); });
+        for (var j=row.length; j<4; j++) {
+          var e=document.createElement('div'); e.className='fp-btn empty'; sec.appendChild(e);
+        }
+        bodyWrap.appendChild(sec);
+      });
+    }
+
+    makePCCatRows(NAT_CATS, activeNat, 'nat', '自然 景観');
+    makePCCatRows(HIS_CATS, activeHis, 'his', '建築');
+    makePCCatRows(SAT_CATS, activeSat, 'sat', '撮影');
+    makePCCatRows(HANA_CATS, activeHana, 'hana', '花');
+    pcUpdateSelAll();
+  }
+
+  pcRenderBody();
+  container.appendChild(bodyWrap);
+
+  var linkRow = document.createElement('div');
+  linkRow.style.cssText = 'display:flex;gap:4px;margin-top:6px;align-items:center;';
+
+  var linkBtn = document.createElement('button');
+  linkBtn.textContent = '🚐 車中泊マップ';
+  linkBtn.style.cssText = 'flex:1;padding:6px;background:#fff;color:#1a73e8;border:1.5px solid #1a73e8;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
+  linkBtn.addEventListener('click', openOtherMap);
+
+  var pollBtn = document.createElement('button');
+  pollBtn.textContent = '🌃 光害マップ';
+  pollBtn.style.cssText = 'flex:1;padding:6px;background:#fff;color:#555;border:1.5px solid #aaa;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
+  pollBtn.addEventListener('click', openLightPollutionMap);
+
+  var pcDot = document.createElement('div');
+  pcDot.id = 'pcLoadDot';
+  pcDot.className = 'load-dot';
+  pcDot.title = 'データ読み込み中...';
+
+  _pcUndoBtn = document.createElement('button');
+  _pcUndoBtn.textContent = '↩️';
+  _pcUndoBtn.title = '削除を元に戻す';
+  _pcUndoBtn.disabled = true;
+  _pcUndoBtn.style.cssText = 'padding:6px 8px;background:#fff;color:#34a853;border:1.5px solid #34a853;border-radius:4px;cursor:pointer;font-size:14px;opacity:0.35;';
+  _pcUndoBtn.addEventListener('click', undoLastDelete);
+
+  linkRow.appendChild(_pcUndoBtn);
+  linkRow.appendChild(linkBtn);
+  linkRow.appendChild(pollBtn);
+  linkRow.appendChild(pcDot);
+  container.appendChild(linkRow);
+
+  return container;
+}
+
+// 🔸 localStorage から地図状態を読み込む
+function loadMapState() {
+  try {
+    var state = localStorage.getItem('fesdbMapState');
+    return state ? JSON.parse(state) : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// 🔸 地図状態を localStorage に保存
+function saveMapState(lat, lng, zoom) {
+  try {
+    localStorage.setItem('fesdbMapState', JSON.stringify({
+      lat: lat,
+      lng: lng,
+      zoom: zoom
+    }));
+  } catch (e) {
+    // localStorage が満杯またはエラーの場合は無視
+  }
+}
+
+// 🔸 データキャッシュ（2時間TTL）
+var DATA_CACHE_KEY = 'fesMapData_v1';
+var DATA_CACHE_TTL = 7200000;
+
+function saveDataCache(data) {
+  try {
+    localStorage.setItem(DATA_CACHE_KEY, JSON.stringify({ts: Date.now(), data: data}));
+  } catch(e) {}
+}
+
+function loadDataCache() {
+  try {
+    var raw = localStorage.getItem(DATA_CACHE_KEY);
+    if (!raw) return null;
+    var obj = JSON.parse(raw);
+    if (!obj || !obj.data || !obj.ts) return null;
+    if (Date.now() - obj.ts > DATA_CACHE_TTL) return null;
+    return obj.data;
+  } catch(e) { return null; }
+}
+
+// 🔸 フィルター状態の保存・復元
+var FILTER_CACHE_KEY = 'fesFilterState_v1';
+
+function saveFilterState() {
+  try {
+    localStorage.setItem(FILTER_CACHE_KEY, JSON.stringify({
+      matsuriOn: matsuriOn,
+      hanabiOn: hanabiOn,
+      months: Array.from(activeMonths),
+      nat: Array.from(activeNat),
+      his: Array.from(activeHis),
+      sat: Array.from(activeSat),
+      hana: Array.from(activeHana)
+    }));
+  } catch(e) {}
+}
+
+function loadFilterState() {
+  try {
+    var raw = localStorage.getItem(FILTER_CACHE_KEY);
+    if (!raw) return false;
+    var s = JSON.parse(raw);
+    if (!s) return false;
+    matsuriOn = !!s.matsuriOn;
+    hanabiOn = !!s.hanabiOn;
+    activeMonths = new Set(s.months || []);
+    activeNat = new Set(s.nat || []);
+    activeHis = new Set(s.his || []);
+    activeSat = new Set(s.sat || []);
+    activeHana = new Set(s.hana || []);
+    return true;
+  } catch(e) { return false; }
+}
+
+function openOtherMap() {
+  var center = map.getCenter();
+  var params = '?lat=' + center.lat().toFixed(5) + '&lng=' + center.lng().toFixed(5) + '&z=' + map.getZoom();
+  window.open(SH_MAP_URL + params, '_blank');
+}
+
+function openLightPollutionMap() {
+  var center = map.getCenter();
+  var lat = center.lat().toFixed(4);
+  var lon = center.lng().toFixed(4);
+  var zoom = map.getZoom().toFixed(2);
+  var state = 'eyJiYXNlbWFwIjoiTGF5ZXJCaW5nUm9hZCIsIm92ZXJsYXkiOiJzYl8yMDI1Iiwib3ZlcmxheWNvbG9yIjpmYWxzZSwib3ZlcmxheW9wYWNpdHkiOiI2MCIsImZlYXR1cmVzb3BhY2l0eSI6Ijg1In0=';
+  window.open('https://www.lightpollutionmap.info/#zoom=' + zoom + '&lat=' + lat + '&lon=' + lon + '&state=' + state, '_blank');
+}
+
+function initMap() {
+  // doGetから注入された相互リンクパラメータを優先チェック
+  var fromLink = typeof _xLat !== 'undefined';
+  // 同タブ内で既に相互リンク座標を適用済みかチェック（リロード時はlocalStorageを優先）
+  var isFirstCrossLink = fromLink && !sessionStorage.getItem('fesCrossLinkApplied');
+  if (isFirstCrossLink) sessionStorage.setItem('fesCrossLinkApplied', '1');
+
+  var savedState = isFirstCrossLink ? null : loadMapState();
+  var initialLat = isFirstCrossLink ? _xLat : (savedState ? savedState.lat : 36.5);
+  var initialLng = isFirstCrossLink ? _xLng : (savedState ? savedState.lng : 138.0);
+  var initialZoom = isFirstCrossLink ? _xZ : (savedState ? savedState.zoom : 5);
+
+  map = new google.maps.Map(document.getElementById('map'), {
+    center: {lat:initialLat, lng:initialLng}, zoom:initialZoom,
+    gestureHandling:'greedy', mapTypeControl:false,
+    streetViewControl:false, fullscreenControl:false, zoomControl:false,
+    rotateControl:false, scaleControl:false
+  });
+  infoWindow = new google.maps.InfoWindow();
+
+  // 🔸 地図の移動・ズーム時に状態を保存
+  map.addListener('dragend', function() {
+    var center = map.getCenter();
+    saveMapState(center.lat(), center.lng(), map.getZoom());
+  });
+  map.addListener('zoom_changed', function() {
+    var center = map.getCenter();
+    saveMapState(center.lat(), center.lng(), map.getZoom());
+  });
+
+  map.addListener('idle', function() {
+    if (!dataLoaded) return;  // データ到着前の早期発火を無視
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(renderMarkers, 150);
+  });
+
+  // マップクリック：POI追加ポップアップ
+  map.addListener('click', function(e) {
+    infoWindow.close();
+    searchMarkers.forEach(function(m) { m.setMap(null); });
+    searchMarkers = [];
+    if (e.placeId) {
+      e.stop();
+      var svc = new google.maps.places.PlacesService(map);
+      svc.getDetails({
+        placeId: e.placeId,
+        fields: ['name','place_id','geometry','address_components','formatted_address']
+      }, function(place, status) {
+        if (status === google.maps.places.PlacesServiceStatus.OK) {
+          showSearchResult(place);
+        }
+      });
+    }
+  });
+
+  var currentLocMarker = null;
+  window.gotoCurrentLocation = function() {
+    navigator.geolocation.getCurrentPosition(function(pos) {
+      var latlng = {lat:pos.coords.latitude, lng:pos.coords.longitude};
+      map.setCenter(latlng);
+      map.setZoom(15);
+      if (currentLocMarker) currentLocMarker.setMap(null);
+      currentLocMarker = new google.maps.Marker({
+        position: latlng,
+        map: map,
+        icon: {
+          path: google.maps.SymbolPath.CIRCLE,
+          scale: 10,
+          fillColor: '#4285F4',
+          fillOpacity: 1,
+          strokeColor: '#fff',
+          strokeWeight: 3
+        },
+        title: '現在地',
+        zIndex: 9999
+      });
+    }, function(){ alert('位置情報を取得できませんでした'); });
+  }
+
+  loadFilterState();
+  document.body.appendChild(buildPanel());
+
+  // スマホ用ボトムシート
+  if (window.innerWidth <= 600) {
+    var bsWrap = document.createElement('div');
+    bsWrap.className = 'bs-wrap';
+
+    var searchBoxBS = document.createElement('div');
+    searchBoxBS.style.cssText = 'display:flex;gap:6px;align-items:center;padding:8px 10px 4px;background:#fff;border-radius:12px 12px 0 0;';
+    
+    // 🔸 現在地ボタン
+    var bsLocBtn = document.createElement('button');
+    bsLocBtn.textContent = '📍';
+    bsLocBtn.style.cssText = 'padding:6px 8px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;font-size:14px;white-space:nowrap;flex-shrink:0;';
+    bsLocBtn.addEventListener('click', function(){ window.gotoCurrentLocation && window.gotoCurrentLocation(); });
+    searchBoxBS.appendChild(bsLocBtn);
+    
+    var bsInput = document.createElement('input');
+    bsInput.type = 'text';
+    bsInput.placeholder = '場所を検索...';
+    bsInput.style.cssText = 'flex:1;border:1px solid #ddd;border-radius:4px;padding:6px 8px;font-size:13px;outline:none;';
+    var bsSearchBtn = document.createElement('button');
+    bsSearchBtn.textContent = '検索';
+    bsSearchBtn.style.cssText = 'padding:6px 12px;background:#1a73e8;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:13px;font-weight:bold;';
+    searchBoxBS.appendChild(bsInput);
+    searchBoxBS.appendChild(bsSearchBtn);
+    
+    // 🔸 Autocomplete - ボトムシート用（単一インスタンス）
+    var acBS = new google.maps.places.Autocomplete(bsInput, {
+      componentRestrictions: {country:'jp'},
+      fields:['name','place_id','geometry','address_components','formatted_address']
+    });
+    acBS.addListener('place_changed', function() { showSearchResult(acBS.getPlace()); });
+    
+    bsSearchBtn.addEventListener('click', function() {
+      var svc = new google.maps.places.PlacesService(map);
+      svc.findPlaceFromQuery({
+        query: bsInput.value,
+        fields:['name','place_id','geometry','address_components','formatted_address']
+      }, function(results, status) {
+        if (status === google.maps.places.PlacesServiceStatus.OK && results[0]) showSearchResult(results[0]);
+      });
+    });
+    bsInput.addEventListener('keydown', function(e){ if(e.key==='Enter') bsSearchBtn.click(); });
+    bsWrap.appendChild(searchBoxBS);
+
+    var bsHandle = document.createElement('div');
+    bsHandle.className = 'bs-handle';
+    var bsBar = document.createElement('div');
+    bsBar.className = 'bs-handle-bar';
+    var bsHandleRow = document.createElement('div');
+    bsHandleRow.className = 'bs-handle-row';
+
+    var bsTabDefs = [
+      {id:'t1',label:'祭・花火'},{id:'t2',label:'自然'},
+      {id:'t3',label:'史跡'},{id:'t4',label:'撮影'},{id:'t5',label:'花'}
+    ];
+    var bsTabEls = {};
+    var bsTabRow = document.createElement('div');
+    bsTabRow.className = 'bs-tab-row';
+    bsTabDefs.forEach(function(td) {
+      var t = document.createElement('div');
+      t.className = 'bs-tab ' + td.id;
+      t.textContent = td.label;
+      t.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (activeTabs.has(td.id)) {
+          activeTabs.delete(td.id);
+          t.classList.remove('on');
+        } else {
+          activeTabs.add(td.id);
+          t.classList.add('on');
+        }
+        bsRenderBody();
+        updateMarkers();
+        if (bsBody.classList.contains('collapsed')) {
+          bsBody.classList.remove('collapsed');
+        }
+      });
+      bsTabEls[td.id] = t;
+      bsTabRow.appendChild(t);
+    });
+
+    var bsClr = document.createElement('div');
+    bsClr.className = 'bs-clr';
+    bsClr.textContent = '解除';
+    bsClr.addEventListener('click', function(e) {
+      e.stopPropagation();
+      activeTabs.clear();
+      bsTabDefs.forEach(function(td){ bsTabEls[td.id].classList.remove('on'); });
+      activeMonths.clear(); activeNat.clear(); activeHis.clear(); activeSat.clear(); activeHana.clear();
+      matsuriOn = false; hanabiOn = false;
+      bsRenderBody();
+      updateMarkers();
+    });
+
+    var bsToggle = document.createElement('div');
+    bsToggle.style.cssText = 'padding:4px 8px;cursor:pointer;font-size:14px;color:#888;margin-left:auto;';
+    bsToggle.textContent = '▼';
+    var bsExpanded = true;
+    bsToggle.addEventListener('click', function(e) {
+      e.stopPropagation();
+      bsExpanded = !bsExpanded;
+      bsBody.classList.toggle('collapsed', !bsExpanded);
+      bsToggle.textContent = bsExpanded ? '▼' : '▲';
+    });
+
+    bsHandleRow.appendChild(bsTabRow);
+    bsHandleRow.appendChild(bsClr);
+    bsHandleRow.appendChild(bsToggle);
+    bsHandle.appendChild(bsBar);
+    bsHandle.appendChild(bsHandleRow);
+
+    var bsBody = document.createElement('div');
+    bsBody.className = 'bs-body';
+
+    function bsRenderBody() {
+      bsBody.innerHTML = '';
+      if (activeTabs.size === 0) return;
+
+      ['t1','t2','t3','t4','t5'].forEach(function(tid) {
+        if (!activeTabs.has(tid)) return;
+        var sec = document.createElement('div');
+        sec.className = 'bs-section';
+
+        if (tid === 't1') {
+          var hdr = document.createElement('div'); hdr.className = 'bs-sec-header';
+          var lbl = document.createElement('div'); lbl.className = 'bs-sec-label'; lbl.textContent = '祭り・花火';
+          var sa = document.createElement('div');
+          sa.className = 'bs-selall' + (matsuriOn && hanabiOn && activeMonths.size === 12 ? ' active' : '');
+          sa.textContent = '全選択';
+          sa.addEventListener('click', function() {
+            var allOn = matsuriOn && hanabiOn && activeMonths.size === 12;
+            if (allOn) {
+              matsuriOn = false; hanabiOn = false; activeMonths.clear();
+              kmBtn.classList.remove('on'); khBtn.classList.remove('on');
+            } else {
+              matsuriOn = true; hanabiOn = true;
+              for (var m=1;m<=12;m++) activeMonths.add(m);
+              kmBtn.classList.add('on'); khBtn.classList.add('on');
+            }
+            sa.className = 'bs-selall' + (matsuriOn && hanabiOn && activeMonths.size===12 ? ' active' : '');
+            refreshMBtns(); updateMarkers();
+          });
+          hdr.appendChild(lbl); hdr.appendChild(sa); sec.appendChild(hdr);
+
+          var kindRow = document.createElement('div'); kindRow.className = 'bs-kind-row';
+          var kmBtn = document.createElement('div');
+          kmBtn.className = 'bs-kind km' + (matsuriOn ? ' on' : '');
+          kmBtn.textContent = '祭り';
+          var khBtn = document.createElement('div');
+          khBtn.className = 'bs-kind kh' + (hanabiOn ? ' on' : '');
+          khBtn.textContent = '花火';
+          kmBtn.addEventListener('click', function() {
+            matsuriOn = !matsuriOn;
+            kmBtn.classList.toggle('on', matsuriOn);
+            refreshMBtns(); updateMarkers();
+          });
+          khBtn.addEventListener('click', function() {
+            hanabiOn = !hanabiOn;
+            khBtn.classList.toggle('on', hanabiOn);
+            refreshMBtns(); updateMarkers();
+          });
+          kindRow.appendChild(kmBtn); kindRow.appendChild(khBtn); sec.appendChild(kindRow);
+
+          var mgrid = document.createElement('div');
+          mgrid.className = 'bs-grid-4';
+          mgrid.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:3px;';
+          var mBtns = {};
+          for (var m=1;m<=12;m++) {
+            (function(mo) {
+              var mb = document.createElement('div');
+              mb.className = 'bs-btn';
+              mb.textContent = mo + '月';
+              setMBtnStyle(mb, mo);
+              mb.addEventListener('click', function() {
+                if (activeMonths.has(mo)) activeMonths.delete(mo);
+                else activeMonths.add(mo);
+                setMBtnStyle(mb, mo); updateMarkers();
+              });
+              mBtns[mo] = mb; mgrid.appendChild(mb);
+            })(m);
+          }
+          sec.appendChild(mgrid);
+
+          function refreshMBtns() {
+            for (var mo=1;mo<=12;mo++) { if(mBtns[mo]) setMBtnStyle(mBtns[mo],mo); }
+          }
+          function setMBtnStyle(el, mo) {
+            el.classList.remove('on','t1','t2');
+            if (activeMonths.has(mo)) {
+              el.classList.add('on', hanabiOn && !matsuriOn ? 't2' : 't1');
+            }
+          }
+        } else {
+          var cats, activeSet, cls, title;
+          if (tid==='t2'){ cats=NAT_CATS; activeSet=activeNat; cls='nat'; title='自然・景観'; }
+          else if (tid==='t3'){ cats=HIS_CATS; activeSet=activeHis; cls='his'; title='史跡・建築'; }
+          else if (tid==='t4'){ cats=SAT_CATS; activeSet=activeSat; cls='sat'; title='撮影'; }
+          else { cats=HANA_CATS; activeSet=activeHana; cls='hana'; title='花'; }
+
+          var hdr = document.createElement('div'); hdr.className = 'bs-sec-header';
+          var lbl = document.createElement('div'); lbl.className = 'bs-sec-label'; lbl.textContent = title;
+          var sa = document.createElement('div');
+          var allOn = cats.every(function(c){ return activeSet.has(c.code); });
+          sa.className = 'bs-selall' + (allOn ? ' active' : '');
+          sa.textContent = '全選択';
+          var itemBtns = [];
+          sa.addEventListener('click', function() {
+            var allOn = cats.every(function(c){ return activeSet.has(c.code); });
+            if (allOn) {
+              cats.forEach(function(c){ activeSet.delete(c.code); });
+              itemBtns.forEach(function(b){ b.classList.remove('on',cls); });
+              sa.className = 'bs-selall';
+            } else {
+              cats.forEach(function(c){ activeSet.add(c.code); });
+              itemBtns.forEach(function(b){ b.classList.add('on',cls); });
+              sa.className = 'bs-selall active';
+            }
+            updateMarkers();
+          });
+          hdr.appendChild(lbl); hdr.appendChild(sa); sec.appendChild(hdr);
+
+          var grid = document.createElement('div');
+          grid.className = 'bs-grid-2';
+          grid.style.cssText = 'display:grid;grid-template-columns:repeat(2,1fr);gap:4px;';
+          cats.forEach(function(cat) {
+            var btn = document.createElement('div');
+            btn.className = 'bs-btn' + (activeSet.has(cat.code) ? ' on ' + cls : '');
+            btn.textContent = cat.label;
+            btn.addEventListener('click', function() {
+              if (activeSet.has(cat.code)) {
+                activeSet.delete(cat.code); btn.classList.remove('on',cls);
+              } else {
+                activeSet.add(cat.code); btn.classList.add('on',cls);
+              }
+              updateMarkers();
+            });
+            itemBtns.push(btn); grid.appendChild(btn);
+          });
+          sec.appendChild(grid);
+        }
+        bsBody.appendChild(sec);
+      });
+    }
+
+    bsRenderBody();
+    bsWrap.appendChild(bsHandle);
+    bsWrap.appendChild(bsBody);
+    document.body.appendChild(bsWrap);
+  }
+
+  // グリッドメニュー（スマホ下部）
+  var menuWrap = document.createElement('div');
+  menuWrap.className = 'menu-wrap';
+
+  var menuTop = document.createElement('div');
+  menuTop.className = 'menu-top';
+
+  var mLocBtn = document.createElement('button');
+  mLocBtn.textContent = '📍 現在地';
+  mLocBtn.style.cssText = 'padding:6px 8px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;font-size:12px;white-space:nowrap;flex-shrink:0;';
+  mLocBtn.addEventListener('click', gotoCurrentLocation);
+  
+  var mInput = document.createElement('input');
+  mInput.type = 'text';
+  mInput.placeholder = '場所を検索...';
+  
+  var mSearchBtn = document.createElement('button');
+  mSearchBtn.className = 'm-search-btn';
+  mSearchBtn.textContent = '検索';
+  
+  var mSelAllBtn = document.createElement('div');
+  mSelAllBtn.className = 'm-selall-btn';
+  mSelAllBtn.textContent = '全選択';
+  
+  var mBodyExpanded = true;
+
+  // 🔸 Autocomplete - メイン検索用（単一インスタンス）
+  setTimeout(function() {
+    if (!autocompleteInstance) {
+      autocompleteInstance = new google.maps.places.Autocomplete(mInput, {
+        componentRestrictions: {country:'jp'},
+        fields:['name','place_id','geometry','address_components','formatted_address']
+      });
+      autocompleteInstance.addListener('place_changed', function() { 
+        showSearchResult(autocompleteInstance.getPlace()); 
+      });
+    }
+  }, 500);
+
+  mSearchBtn.addEventListener('click', function() {
+    var svc = new google.maps.places.PlacesService(map);
+    svc.findPlaceFromQuery({
+      query: mInput.value,
+      fields:['name','place_id','geometry','address_components','formatted_address']
+    }, function(results, status) {
+      if (status === google.maps.places.PlacesServiceStatus.OK && results[0]) showSearchResult(results[0]);
+    });
+  });
+  mInput.addEventListener('keydown', function(e){ if(e.key==='Enter') mSearchBtn.click(); });
+
+  var mSatBtn = document.createElement('button');
+  mSatBtn.textContent = '🛰';
+  mSatBtn.title = '航空写真 / 地図 切替';
+  mSatBtn.style.cssText = 'padding:6px 8px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;font-size:14px;white-space:nowrap;flex-shrink:0;';
+  mSatBtn.addEventListener('click', function() {
+    var current = map.getMapTypeId();
+    if (current === 'roadmap') {
+      map.setMapTypeId('hybrid');
+      mSatBtn.style.background = '#1a73e8';
+      mSatBtn.style.borderColor = '#1a73e8';
+    } else {
+      map.setMapTypeId('roadmap');
+      mSatBtn.style.background = '#fff';
+      mSatBtn.style.borderColor = '#ddd';
+    }
+  });
+
+  menuTop.appendChild(mLocBtn);
+  menuTop.appendChild(mSatBtn);
+  menuTop.appendChild(mInput);
+  menuTop.appendChild(mSearchBtn);
+  menuTop.appendChild(mSelAllBtn);
+
+  var menuBody = document.createElement('div');
+  menuBody.className = 'menu-body';
+
+  // ハンドルバー：下スワイプで折りたたみ、タップでトグル
+  var menuHandleBar = document.createElement('div');
+  menuHandleBar.style.cssText = 'width:40px;height:4px;background:#ddd;border-radius:2px;margin:6px auto 4px;cursor:pointer;touch-action:none;';
+  var _mHbStartY = 0, _mHbDragged = false;
+  menuHandleBar.addEventListener('touchstart', function(e) {
+    _mHbStartY = e.touches[0].clientY;
+    _mHbDragged = false;
+  }, {passive: true});
+  menuHandleBar.addEventListener('touchmove', function(e) {
+    if (e.touches[0].clientY - _mHbStartY > 30) {
+      _mHbDragged = true;
+      mBodyExpanded = false;
+      menuBody.classList.add('collapsed');
+    }
+  }, {passive: true});
+  menuHandleBar.addEventListener('touchend', function() {
+    if (!_mHbDragged) {
+      mBodyExpanded = !mBodyExpanded;
+      menuBody.classList.toggle('collapsed', !mBodyExpanded);
+    }
+  });
+  menuHandleBar.addEventListener('click', function(e) {
+    // マウスクリック用（PC開発時）
+    if (e.pointerType !== 'touch') {
+      mBodyExpanded = !mBodyExpanded;
+      menuBody.classList.toggle('collapsed', !mBodyExpanded);
+    }
+  });
+
+  function isAllSelected() {
+    return matsuriOn && hanabiOn && activeMonths.size===12
+      && NAT_CATS.every(function(c){ return activeNat.has(c.code); })
+      && HIS_CATS.every(function(c){ return activeHis.has(c.code); })
+      && SAT_CATS.every(function(c){ return activeSat.has(c.code); })
+      && HANA_CATS.every(function(c){ return activeHana.has(c.code); });
+  }
+  mSelAllBtn.addEventListener('click', function() {
+    if (isAllSelected()) {
+      activeMonths.clear(); activeNat.clear(); activeHis.clear(); activeSat.clear(); activeHana.clear();
+      matsuriOn=false; hanabiOn=false;
+      mSelAllBtn.className = 'm-selall-btn';
+    } else {
+      for(var i=1;i<=12;i++) activeMonths.add(i);
+      matsuriOn=true; hanabiOn=true;
+      NAT_CATS.forEach(function(c){ activeNat.add(c.code); });
+      HIS_CATS.forEach(function(c){ activeHis.add(c.code); });
+      SAT_CATS.forEach(function(c){ activeSat.add(c.code); });
+      HANA_CATS.forEach(function(c){ activeHana.add(c.code); });
+      mSelAllBtn.className = 'm-selall-btn active';
+    }
+    mRender(); updateMarkers();
+  });
+
+  function mRender() {
+    menuBody.innerHTML = '';
+
+    var allMatHan = matsuriOn && hanabiOn && activeMonths.size===12;
+
+    function makeMonthRow(labelEl, months, cls) {
+      var sec = document.createElement('div');
+      sec.className = 'menu-section';
+      if (months[0] > 4) sec.style.paddingTop = '0';
+      sec.appendChild(labelEl);
+      months.forEach(function(mo) {
+        var b = document.createElement('div');
+        b.className = 'm-btn' + (activeMonths.has(mo) ? ' on ' + cls : '');
+        b.textContent = mo + '月';
+        b.addEventListener('click', function() {
+          if (activeMonths.has(mo)) activeMonths.delete(mo);
+          else activeMonths.add(mo);
+          mRender(); updateMarkers();
+        });
+        sec.appendChild(b);
+      });
+      return sec;
+    }
+
+    var sa1 = document.createElement('div');
+    sa1.className = 'm-label sel' + (allMatHan ? ' on' : '');
+    sa1.textContent = '全選択';
+    sa1.addEventListener('click', function() {
+      if (matsuriOn && hanabiOn && activeMonths.size===12) {
+        matsuriOn=false; hanabiOn=false; activeMonths.clear();
+      } else {
+        matsuriOn=true; hanabiOn=true;
+        for(var i=1;i<=12;i++) activeMonths.add(i);
+      }
+      mRender(); updateMarkers();
+    });
+    menuBody.appendChild(makeMonthRow(sa1, [1,2,3,4], matsuriOn?'mat':'han'));
+
+    var kmBtn = document.createElement('div');
+    kmBtn.className = 'm-kind mat' + (matsuriOn ? ' on' : '');
+    kmBtn.textContent = '🏮 祭り';
+    kmBtn.addEventListener('click', function() {
+      matsuriOn=!matsuriOn; mRender(); updateMarkers();
+    });
+    menuBody.appendChild(makeMonthRow(kmBtn, [5,6,7,8], matsuriOn?'mat':'han'));
+
+    var khBtn = document.createElement('div');
+    khBtn.className = 'm-kind han' + (hanabiOn ? ' on' : '');
+    khBtn.textContent = '🎆 花火';
+    khBtn.addEventListener('click', function() {
+      hanabiOn=!hanabiOn; mRender(); updateMarkers();
+    });
+    menuBody.appendChild(makeMonthRow(khBtn, [9,10,11,12], hanabiOn?'han':'mat'));
+
+    function makeCatRows(cats, activeSet, cls, labelText) {
+      var allOn = cats.every(function(c){ return activeSet.has(c.code); });
+      var btns = cats.map(function(cat) {
+        var b = document.createElement('div');
+        b.className = 'm-btn' + (activeSet.has(cat.code) ? ' on ' + cls : '');
+        b.textContent = cat.label;
+        b.addEventListener('click', function() {
+          if (activeSet.has(cat.code)) { activeSet.delete(cat.code); b.classList.remove('on',cls); }
+          else { activeSet.add(cat.code); b.classList.add('on',cls); }
+          var nowAll = cats.every(function(c){ return activeSet.has(c.code); });
+          saBtn.className = 'm-label sel' + (nowAll ? ' on' : '');
+          updateMarkers();
+        });
+        return b;
+      });
+
+      var rows = [];
+      for (var i=0; i<btns.length; i+=4) rows.push(btns.slice(i,i+4));
+
+      var saBtn;
+      rows.forEach(function(row, ri) {
+        var sec = document.createElement('div');
+        sec.className = 'menu-section' + (ri===0 ? ' sep' : '');
+        if (ri > 0) sec.style.paddingTop = '0';
+
+        if (ri === 0) {
+          saBtn = document.createElement('div');
+          saBtn.className = 'm-label sel' + (allOn ? ' on' : '');
+          saBtn.textContent = '全選択';
+          saBtn.addEventListener('click', function() {
+            var nowAll = cats.every(function(c){ return activeSet.has(c.code); });
+            if (nowAll) {
+              cats.forEach(function(c){ activeSet.delete(c.code); });
+              btns.forEach(function(b){ b.classList.remove('on',cls); });
+              saBtn.className = 'm-label sel';
+            } else {
+              cats.forEach(function(c){ activeSet.add(c.code); });
+              btns.forEach(function(b){ b.classList.add('on',cls); });
+              saBtn.className = 'm-label sel on';
+            }
+            updateMarkers();
+          });
+          sec.appendChild(saBtn);
+        } else {
+          var lbl = document.createElement('div');
+          lbl.className = 'm-label';
+          lbl.style.whiteSpace = 'pre-wrap';
+          lbl.textContent = ri===1 ? labelText.replace(' ','\n') : '';
+          sec.appendChild(lbl);
+        }
+
+        row.forEach(function(b){ sec.appendChild(b); });
+        for (var j=row.length; j<4; j++) {
+          var e=document.createElement('div'); e.className='m-btn empty'; sec.appendChild(e);
+        }
+        menuBody.appendChild(sec);
+      });
+    }
+
+    makeCatRows(NAT_CATS, activeNat, 'nat', '自然 景観');
+    makeCatRows(HIS_CATS, activeHis, 'his', '建築');
+    makeCatRows(SAT_CATS, activeSat, 'sat', '撮影');
+    makeCatRows(HANA_CATS, activeHana, 'hana', '花');
+  }
+
+  var mLinkRow = document.createElement('div');
+  mLinkRow.style.cssText = 'padding:6px 8px;border-top:1px solid #eee;display:flex;gap:4px;align-items:center;';
+
+  var mLinkBtn = document.createElement('button');
+  mLinkBtn.textContent = '🚐 車中泊マップ';
+  mLinkBtn.style.cssText = 'flex:1;padding:7px;background:#fff;color:#1a73e8;border:1.5px solid #1a73e8;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
+  mLinkBtn.addEventListener('click', openOtherMap);
+
+  var mPollBtn = document.createElement('button');
+  mPollBtn.textContent = '🌃 光害マップ';
+  mPollBtn.style.cssText = 'flex:1;padding:7px;background:#fff;color:#555;border:1.5px solid #aaa;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;';
+  mPollBtn.addEventListener('click', openLightPollutionMap);
+
+  var mDot = document.createElement('div');
+  mDot.id = 'mLoadDot';
+  mDot.className = 'load-dot';
+  mDot.title = 'データ読み込み中...';
+
+  _mUndoBtn = document.createElement('button');
+  _mUndoBtn.textContent = '↩️';
+  _mUndoBtn.title = '削除を元に戻す';
+  _mUndoBtn.disabled = true;
+  _mUndoBtn.style.cssText = 'padding:7px 8px;background:#fff;color:#34a853;border:1.5px solid #34a853;border-radius:4px;cursor:pointer;font-size:14px;opacity:0.35;';
+  _mUndoBtn.addEventListener('click', undoLastDelete);
+
+  mLinkRow.appendChild(_mUndoBtn);
+  mLinkRow.appendChild(mLinkBtn);
+  mLinkRow.appendChild(mPollBtn);
+  mLinkRow.appendChild(mDot);
+
+  mRender();
+  menuWrap.appendChild(menuHandleBar);
+  menuWrap.appendChild(menuTop);
+  menuWrap.appendChild(menuBody);
+  menuWrap.appendChild(mLinkRow);
+  document.body.appendChild(menuWrap);
+
+  // キャッシュがあれば即座に表示（再読み込み時の体感速度改善）
+  var _cached = loadDataCache();
+  if (_cached) setupMarkers(_cached);
+
+  // GitHubから最新データ取得（GASより高速）→ 失敗時はGASフォールバック
+  var _GH_DATA_URL = 'https://raw.githubusercontent.com/wherethereisawillthereisaway2026/matsuri-map-data/main/data.json';
+  fetch(_GH_DATA_URL + '?t=' + Date.now())
+    .then(function(r) {
+      if (!r.ok) throw new Error('http ' + r.status);
+      return r.json();
+    })
+    .then(function(data) {
+      if (data && data.length > 0) {
+        saveDataCache(data);
+        setupMarkers(data);
+      } else {
+        throw new Error('empty');
+      }
+    })
+    .catch(function() { console.error('CDNからのデータ取得失敗'); });
+}
+
+function getMarkerKey(p) {
+  return (p.source || '') + ':' + p.rowIndex;
+}
+
+function getMapUrl(p) {
+  if (p.placeId) {
+    return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.name) + '&query_place_id=' + p.placeId;
+  }
+  return 'https://www.google.com/maps?q=' + p.lat + ',' + p.lng;
+}
+
+function createMarkerForPoint(p) {
+  var marker = new google.maps.Marker({
+    position: {lat:p.lat, lng:p.lng},
+    title: p.name,
+    icon: getMarkerIcon(p.category),
+    map: map
+  });
+  marker._code = p.category;
+  marker._month = p.month;
+  marker._item = p;
+  
+  marker.addListener('click', function() {
+    var categoryCode = p.category;
+    var monthCode = p.month;
+    var kindLabel = '';
+    
+    if (categoryCode === 1 || categoryCode === 2) {
+      kindLabel = CAT_LABELS[categoryCode] || '';
+      if (monthCode >= 1 && monthCode <= 12) {
+        kindLabel += ' ' + monthCode + '月';
+      }
+    } else {
+      kindLabel = CAT_LABELS[categoryCode] || '';
+    }
+
+    var dateText = p.date || '';
+    var urlPattern = /(https?:\/\/[^\s]+)/g;
+    var extractedUrls = dateText.match(urlPattern) || [];
+    var cleanDate = dateText.replace(urlPattern, '').trim();
+
+    var catOptions = '<option value="">-- 変更しない --</option>';
+    var catGroups = [
+      {label:'🏮 祭り', codes:[1,2,3,4,5,6,7,8,9,10,11,12]},
+      {label:'🎆 花火', codes:[21,22,23,24,25,26,27,28,29,30,31,32]},
+      {label:'自然・景観', cats: NAT_CATS},
+      {label:'史跡・建築', cats: HIS_CATS},
+      {label:'撮影', cats: SAT_CATS},
+      {label:'花', cats: HANA_CATS}
+    ];
+    catGroups.forEach(function(g) {
+      catOptions += '<optgroup label="' + g.label + '">';
+      if (g.codes) {
+        g.codes.forEach(function(c) {
+          var mo = (c > 20) ? c-20 : c;
+          var sel = (c === categoryCode) ? ' selected' : '';
+          catOptions += '<option value="' + c + '"' + sel + '>' + mo + '月</option>';
+        });
+      } else {
+        g.cats.forEach(function(cat) {
+          var sel = (cat.code === categoryCode) ? ' selected' : '';
+          catOptions += '<option value="' + cat.code + '"' + sel + '>' + cat.label + '</option>';
+        });
+      }
+      catOptions += '</optgroup>';
+    });
+
+    var memoRaw = p.memo || '';
+    var memoUrls = memoRaw.match(/(https?:\/\/[^\s]+)/g) || [];
+    var cleanMemo = memoRaw.replace(/(https?:\/\/[^\s]+)/g, '').trim();
+    var memoVal = cleanMemo.replace(/'/g, "&#39;");
+    var urlVal  = (p.officialUrl || '').replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+    var rowIdx  = p.rowIndex;
+
+    var titleLink = p.placeId ? getMapUrl(p) : (p.officialUrl || getMapUrl(p));
+
+    var div = document.createElement('div');
+    div.style.cssText = 'line-height:1.7;min-width:220px;max-width:260px;font-size:13px;';
+    div.innerHTML =
+      "<a href='" + titleLink + "' target='_blank' style='color:#1a73e8;font-size:14px;font-weight:bold;text-decoration:none;'>" + p.name + "</a>"
+      + " <span style='color:#888;font-size:12px;font-weight:normal;'>📍 " + p.pref + " " + p.adr + "</span><br>"
+      + (cleanDate ? "<span style='font-size:12px;'>📅 " + cleanDate + "</span><br>" : "")
+      + "<span onclick='toggleCatSel(" + rowIdx + ")' style='font-size:12px;cursor:pointer;color:#555;'>🏷 " + kindLabel + " <span style='color:#aaa;font-size:10px;'>▼</span></span><br>"
+      + (memoVal ? "<span style='color:#666;font-size:12px;'>📝 " + memoVal + "</span><br>" : "")
+      + (memoUrls.map(function(u){ return "<a href='" + u + "' target='_blank' class='popup-link' title='" + u + "'>外部リンク</a>"; }).join('<br>'))
+      + (memoUrls.length ? '<br>' : '')
+      + (extractedUrls.map(function(u){ return "<a href='" + u + "' target='_blank' class='popup-link' title='" + u + "'>外部リンク</a>"; }).join('<br>'))
+      + (extractedUrls.length ? '<br>' : '')
+      + (p.officialUrl && p.officialUrl.trim() && titleLink !== p.officialUrl ? "<a href='" + p.officialUrl + "' target='_blank' class='popup-link' title='" + p.officialUrl + "'>公式ページ</a><br>" : "")
+      + "<hr style='margin:6px 0;border:none;border-top:1px solid #eee;'>"
+      + "<div id='cat-sel-wrap-" + rowIdx + "' style='display:none;margin-bottom:4px;'>"
+      + "<select id='cat-sel-" + rowIdx + "' onchange='saveCategory(" + rowIdx + ")' style='width:100%;padding:4px;border:1px solid #ddd;border-radius:4px;font-size:12px;'>" + catOptions + "</select>"
+      + "<div id='cat-msg-" + rowIdx + "' style='font-size:11px;color:#1a73e8;height:14px;'></div>"
+      + "</div>"
+      + "<div style='display:flex;gap:4px;'>"
+      + "<button onclick='toggleMemo(" + rowIdx + ")' style='flex:1;padding:5px;background:#fff;color:#34a853;border:1.5px solid #34a853;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;'>📝 編集</button>"
+      + "<button onclick='deletePin(" + rowIdx + ",this,\"" + (p.source||'') + "\")' style='flex:1;padding:5px;background:#fff;color:#ea4335;border:1.5px solid #ea4335;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;'>🗑 削除</button>"
+      + "</div>"
+      + "<div id='memo-area-" + rowIdx + "' style='display:none;margin-top:4px;'>"
+      + "<input type='text' id='url-" + rowIdx + "' placeholder='公式URL' value=\"" + urlVal + "\" style='width:100%;padding:4px;border:1px solid #ddd;border-radius:4px;font-size:12px;box-sizing:border-box;margin-bottom:4px;'>"
+      + "<textarea id='memo-" + rowIdx + "' rows='2' style='width:100%;padding:4px;border:1px solid #ddd;border-radius:4px;font-size:12px;box-sizing:border-box;resize:vertical;'>" + memoVal + "</textarea>"
+      + "<button id='savememo-btn-" + rowIdx + "' onclick='saveMemo(" + rowIdx + ")' style='width:100%;padding:5px;background:#34a853;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;'>保存</button>"
+      + "</div>";
+
+    infoWindow.setContent(div);
+    infoWindow.open(map, marker);
+    
+    setTimeout(function() {
+      var w = document.getElementById('cat-sel-wrap-' + rowIdx);
+      if (w) w.style.display = 'none';
+    }, 50);
+
+    infoWindow._currentMarker = marker;
+    infoWindow._currentRowIdx = rowIdx;
+  });
+  
+  markerPool.set(getMarkerKey(p), marker);
+  activeMarkers.push(marker);
+  return marker;
+}
+
+function setupMarkers(data) {
+  if (!data || data.length === 0) return;
+  allData = data;
+  saveDataCache(data);
+  dataLoaded = true;  // idle早期発火対策：データ到着後にフラグON
+  ['pcLoadDot','mLoadDot'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) { el.className = 'load-dot done'; el.title = '読み込み完了'; }
+  });
+  renderMarkers();
+}
+
+var SHOW_ZOOM = 8;
+
+function renderMarkers() {
+  var zoom = map.getZoom();
+  if (zoom < SHOW_ZOOM) {
+    document.getElementById('zoom-msg').style.display = 'block';
+    // プール内の全マーカーを非表示
+    markerPool.forEach(function(m) { m.setMap(null); });
+    activeMarkers = [];
+    return;
+  }
+  document.getElementById('zoom-msg').style.display = 'none';
+  var bounds = map.getBounds();
+  if (!bounds) return;
+
+  // 今回表示すべきキー集合と、データの高速引き用インデックスを構築
+  var shouldShow = new Set();
+  var dataIndex = new Map();
+  for (var i = 0; i < allData.length; i++) {
+    var p = allData[i];
+    var key = getMarkerKey(p);
+    dataIndex.set(key, p);
+    if (!isVisible(p.category, p.month)) continue;
+    if (!bounds.contains({lat: p.lat, lng: p.lng})) continue;
+    shouldShow.add(key);
+  }
+
+  // 既存プール: 不要なものを非表示・必要なものを再表示
+  markerPool.forEach(function(m, key) {
+    if (shouldShow.has(key)) {
+      if (!m.getMap()) m.setMap(map);
+    } else {
+      m.setMap(null);
+    }
+  });
+
+  // プールにない新規キーのみ生成（内部でmarkerPool.set()される）
+  shouldShow.forEach(function(key) {
+    if (!markerPool.has(key)) {
+      var p = dataIndex.get(key);
+      if (p) createMarkerForPoint(p);
+    }
+  });
+
+  // activeMarkersを現在表示中のプールから再構築
+  activeMarkers = [];
+  markerPool.forEach(function(m) {
+    if (m.getMap()) activeMarkers.push(m);
+  });
+}
+
+function clearActiveMarkers() {
+  for (var i = 0; i < activeMarkers.length; i++) {
+    activeMarkers[i].setMap(null);
+  }
+  activeMarkers = [];
+}
+
+(function() {
+  var s = document.createElement('script');
+  s.src = 'https://maps.googleapis.com/maps/api/js?key=' + MY_API_KEY + '&libraries=places&callback=initMap';
+  s.async = true;
+  document.head.appendChild(s);
+})();
+
+function saveCategory(rowIdx) {
+  var sel = document.getElementById('cat-sel-' + rowIdx);
+  var msg = document.getElementById('cat-msg-' + rowIdx);
+  if (!sel || !sel.value) return;
+  var newCode = parseInt(sel.value, 10);
+  if (msg) msg.textContent = '保存中...';
+  _gasPost({action: 'updateCategory', rowIndex: rowIdx, newCode: newCode})
+    .then(function(res) {
+      if (res.ok) {
+        allData.forEach(function(pd) { if (pd.rowIndex === rowIdx) pd.category = newCode; });
+        infoWindow.close();
+        renderMarkers();
+      }
+    })
+    .catch(function(e){ if (msg) msg.textContent = '✕ エラー'; alert('エラー: ' + e); });
+}
+
+function toggleCatSel(rowIdx) {
+  var wrap = document.getElementById('cat-sel-wrap-' + rowIdx);
+  if (wrap) wrap.style.display = wrap.style.display === 'none' ? 'block' : 'none';
+}
+
+function toggleMemo(rowIdx) {
+  var area = document.getElementById('memo-area-' + rowIdx);
+  if (area) area.style.display = area.style.display === 'none' ? 'block' : 'none';
+}
+
+function saveMemo(rowIdx) {
+  var ta = document.getElementById('memo-' + rowIdx);
+  var urlInput = document.getElementById('url-' + rowIdx);
+  var btn = document.getElementById('savememo-btn-' + rowIdx);
+  if (!ta) return;
+  var memo = ta.value;
+  var url = urlInput ? urlInput.value.trim() : '';
+  if (btn) { btn.textContent = '保存中...'; btn.disabled = true; }
+  _gasPost({action: 'updateMemoAndUrl', rowIndex: rowIdx, memo: memo, url: url})
+    .then(function(res) {
+      if (res.ok) {
+        allData.forEach(function(p) { if (p.rowIndex === rowIdx) { p.memo = memo; p.officialUrl = url; } });
+        saveDataCache(allData);
+        if (btn) {
+          btn.textContent = '✓ 保存しました';
+          setTimeout(function() { btn.textContent = '保存'; btn.disabled = false; }, 1500);
+        }
+      }
+    })
+    .catch(function(e){ if (btn) { btn.textContent = '❌ エラー'; btn.disabled = false; } });
+}
+
+// ========== 削除キュー ==========
+var _deleteQueue = [];
+var _deleteInProgress = false;
+
+function _processDeleteQueue() {
+  if (_deleteInProgress || _deleteQueue.length === 0) return;
+  _deleteInProgress = true;
+  var job = _deleteQueue.shift();
+  _executeDelete(job.rowIdx, job.source);
+}
+
+function _executeDelete(rowIdx, source) {
+  var action = source === 'OB' ? 'deleteRowOB' : 'deleteRow';
+  _gasPost({action: action, rowIndex: rowIdx})
+    .then(function(res) {
+      if (res.ok) {
+        _deleteQueue.forEach(function(job) {
+          if ((job.source||'') === (source||'') && job.rowIdx > rowIdx) job.rowIdx -= 1;
+        });
+        allData.forEach(function(p) {
+          if ((p.source||'') === (source||'') && p.rowIndex > rowIdx) p.rowIndex -= 1;
+        });
+      } else {
+        alert('削除に失敗しました: ' + (res.msg || ''));
+      }
+      _deleteInProgress = false;
+      _processDeleteQueue();
+    })
+    .catch(function(e){ alert('エラー: ' + e); _deleteInProgress = false; _processDeleteQueue(); });
+}
+
+function deletePin(rowIdx, btn, source) {
+  if (!btn._confirmMode) {
+    btn._confirmMode = true;
+    btn.textContent = '⚠ 本当に削除しますか？';
+    btn.style.background = '#ea4335';
+    btn.style.color = '#fff';
+    btn._confirmTimer = setTimeout(function() {
+      btn._confirmMode = false;
+      btn.textContent = '🗑 このピンを削除';
+      btn.style.background = '#fff';
+      btn.style.color = '#ea4335';
+    }, 3000);
+    return;
+  }
+  clearTimeout(btn._confirmTimer);
+  btn._confirmMode = false;
+  btn.disabled = true;
+  btn.textContent = '削除中...';
+
+  // undoスタックに保存
+  var _delItem = allData.find(function(p){ return p.rowIndex === rowIdx && (p.source||'') === (source||''); });
+  if (_delItem) {
+    var _pid = _delItem.placeId || '';  // placeIdを直接参照
+    _undoStack.push({ item: _delItem, pid: _pid, source: source });
+    _updateUndoBtns();
+  }
+
+  // UIから即座に除去
+  var _delKey = (source || '') + ':' + rowIdx;
+  allData = allData.filter(function(p){ return !(p.rowIndex === rowIdx && (p.source||'') === (source||'')); });
+  for (var i = activeMarkers.length - 1; i >= 0; i--) {
+    if (activeMarkers[i]._item.rowIndex === rowIdx && (activeMarkers[i]._item.source||'') === (source||'')) {
+      activeMarkers[i].setMap(null);
+      activeMarkers.splice(i, 1);
+    }
+  }
+  markerPool.delete(_delKey);  // プールからも除去
+  infoWindow.close();
+
+  // キューに追加して順番に処理
+  _deleteQueue.push({ rowIdx: rowIdx, source: source });
+  _processDeleteQueue();
+}
+
+// ========== Undo ==========
+function _updateUndoBtns() {
+  var can = _undoStack.length > 0;
+  if (_pcUndoBtn) { _pcUndoBtn.disabled = !can; _pcUndoBtn.style.opacity = can ? '1' : '0.35'; }
+  if (_mUndoBtn)  { _mUndoBtn.disabled  = !can; _mUndoBtn.style.opacity  = can ? '1' : '0.35'; }
+}
+
+function undoLastDelete() {
+  if (_undoStack.length === 0) return;
+  var entry = _undoStack.pop();
+  _updateUndoBtns();
+  var item = entry.item;
+
+  var onSuccess = function(res) {
+    if (res.ok) {
+      item.rowIndex = res.rowIndex;
+      allData.push(item);
+      renderMarkers();
+    } else {
+      alert('元に戻せませんでした: ' + (res.msg || ''));
+      _undoStack.push(entry);
+    }
+    _updateUndoBtns();
+  };
+  var onFail = function(e) {
+    alert('エラー: ' + e);
+    _undoStack.push(entry);
+    _updateUndoBtns();
+  };
+
+  if (entry.source === 'OB') {
+    _gasPost({action: 'addRowOB', data: { name: item.name, elevation: item.elevation || '', placeId: entry.pid, lat: item.lat, lng: item.lng }})
+      .then(onSuccess).catch(onFail);
+  } else {
+    _gasPost({action: 'addRow', data: { name: item.name, pref: item.pref, adr: item.adr, date: item.date, memo: item.memo, pid: entry.pid, lat: item.lat, lng: item.lng, officialUrl: item.officialUrl, category: item.category, month: item.month }})
+      .then(onSuccess).catch(onFail);
+  }
+}
+
+function closeSearch() {
+  infoWindow.close();
+}
+
+function showSearchResult(place) {
+  if (!place.geometry) return;
+  map.setCenter(place.geometry.location);
+  var searchMarker = new google.maps.Marker({
+    position: place.geometry.location,
+    map: map,
+    icon: { path: google.maps.SymbolPath.CIRCLE, scale:10, fillColor:'#ea4335', fillOpacity:1, strokeColor:'#fff', strokeWeight:3 },
+    title: place.name,
+    zIndex: 9999
+  });
+  searchMarker._isSearchMarker = true;
+  searchMarkers.push(searchMarker);
+
+  var pref = '', adr = '';
+  if (place.address_components) {
+    place.address_components.forEach(function(c) {
+      if (c.types.indexOf('administrative_area_level_1') >= 0) pref = c.long_name;
+      if (c.types.indexOf('locality') >= 0 || c.types.indexOf('sublocality_level_1') >= 0) {
+        if (!adr) adr = c.long_name;
+      }
+    });
+  }
+
+  var allCats = [].concat(
+    NAT_CATS.map(function(c){ return {code:c.code, label:c.label}; }),
+    HIS_CATS.map(function(c){ return {code:c.code, label:c.label}; }),
+    SAT_CATS.map(function(c){ return {code:c.code, label:c.label}; }),
+    HANA_CATS.map(function(c){ return {code:c.code, label:c.label}; })
+  );
+  var opts = '<option value="">-- カテゴリを選択 --</option>';
+  opts += '<optgroup label="祭り">';
+  for (var m=1;m<=12;m++) opts += '<option value="'+m+'">'+m+'月</option>';
+  opts += '</optgroup><optgroup label="花火">';
+  for (var m=21;m<=32;m++) opts += '<option value="'+m+'">'+(m-20)+'月</option>';
+  opts += '</optgroup><optgroup label="自然・景観">';
+  NAT_CATS.forEach(function(c){ opts += '<option value="'+c.code+'">'+c.label+'</option>'; });
+  opts += '</optgroup><optgroup label="史跡・建築">';
+  HIS_CATS.forEach(function(c){ opts += '<option value="'+c.code+'">'+c.label+'</option>'; });
+  opts += '</optgroup><optgroup label="撮影">';
+  SAT_CATS.forEach(function(c){ opts += '<option value="'+c.code+'">'+c.label+'</option>'; });
+  opts += '</optgroup><optgroup label="花">';
+  HANA_CATS.forEach(function(c){ opts += '<option value="'+c.code+'">'+c.label+'</option>'; });
+  opts += '</optgroup>';
+
+  var div = document.createElement('div');
+  div.className = 'add-popup';
+  var mapUrl = place.place_id 
+    ? "https://www.google.com/maps/search/?api=1&query=" + encodeURIComponent(place.name) + "&query_place_id=" + place.place_id
+    : "https://www.google.com/maps?q=" + place.geometry.location.lat() + "," + place.geometry.location.lng();
+  div.innerHTML =
+    "<a href='" + mapUrl + "' target='_blank' style='color:#1a73e8;font-size:14px;font-weight:bold;text-decoration:none;'>" + place.name + "</a><br>"
+    + "📍 " + (pref||'') + " " + (adr||'') + "<br>"
+    + "<hr style='margin:8px 0;border:none;border-top:1px solid #eee;'>"
+    + "<select id='add-cat-sel' onchange=\"onAddCatChange(this.value)\">" + opts + "</select>"
+    + "<input type='text' id='add-toilet-dist' placeholder='🚻 トイレまでの距離 例: 50m、徒歩2分' style='display:none'>"
+    + "<select id='add-month-sel'><option value='0'>月 (指定なし)</option>"
+    + [1,2,3,4,5,6,7,8,9,10,11,12].map(function(m){ return "<option value='"+m+"'>"+m+"月</option>"; }).join('')
+    + "</select>"
+    + "<input type='text' id='add-date-input' placeholder='開催日 例: 7月15日〜16日'>"
+    + "<input type='text' id='add-url-input' placeholder='公式URL (https://...)'>"
+    + "<textarea id='add-memo-input' rows='2' placeholder='メモ'></textarea>"
+    + "<button class='add-popup btn-add' id='add-submit-btn' onclick='addToFESDB(" + JSON.stringify({
+        name: place.name,
+        pref: pref,
+        adr:  adr,
+        pid:  place.place_id||'',
+        lat:  place.geometry.location.lat(),
+        lng:  place.geometry.location.lng()
+      }) + ")'>📌 FESDBに追加</button>"
+    + "<button class='add-popup btn-cancel' onclick='closeSearch()'>キャンセル</button>";
+
+  infoWindow.setContent(div);
+  infoWindow.open(map, searchMarker);
+}
+
+function onAddCatChange(val) {
+  var isOB = (val === '47');
+  // 展望台固有フィールド
+  var toiletEl = document.getElementById('add-toilet-dist');
+  if (toiletEl) toiletEl.style.display = isOB ? 'block' : 'none';
+  // FES固有フィールド（展望台では不要）
+  var fesOnly = ['add-month-sel', 'add-date-input', 'add-url-input'];
+  fesOnly.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.style.display = isOB ? 'none' : 'block';
+  });
+  // ボタン文言
+  var btn = document.getElementById('add-submit-btn');
+  if (btn) btn.textContent = isOB ? '🗼 OBシートに追加' : '📌 FESDBに追加';
+}
+
+function addToFESDB(place) {
+  var sel = document.getElementById('add-cat-sel');
+  var code = sel ? parseInt(sel.value) || '' : '';
+  if (!code) {
+    alert('カテゴリを選択してください');
+    return;
+  }
+  var monthSel  = document.getElementById('add-month-sel');
+  var dateInput = document.getElementById('add-date-input');
+  var urlInput  = document.getElementById('add-url-input');
+  var memoInput = document.getElementById('add-memo-input');
+  var month       = monthSel  ? (parseInt(monthSel.value) || 0) : 0;
+  var dateVal     = dateInput ? dateInput.value.trim() : '';
+  var officialUrl = urlInput  ? urlInput.value.trim()  : '';
+  var memo        = memoInput ? memoInput.value.trim()  : '';
+  var toiletDistInput = document.getElementById('add-toilet-dist');
+  var toiletDist  = toiletDistInput ? toiletDistInput.value.trim() : '';
+  var btn = sel.parentNode.querySelector('.btn-add');
+  if (btn) { btn.disabled = true; btn.textContent = '追加中...'; }
+
+  if (code === 47) {
+    _gasPost({action: 'addRowOB', data: { name: place.name, toilet: toiletDist, placeId: place.pid, lat: place.lat, lng: place.lng }})
+      .then(function(res) {
+        if (res.ok) {
+          var addBtn = document.querySelector('.btn-add');
+          if (addBtn) { addBtn.style.background = '#34a853'; addBtn.textContent = '✓ 追加しました'; }
+          setTimeout(function(){ infoWindow.close(); }, 1500);
+          allData.push({ source:'OB', rowIndex:res.rowIndex, name:place.name, rating:'', elevation:'', lat:place.lat, lng:place.lng, category:47, month:0, pref:'', adr:'', memo:'', placeId:place.pid||'' });
+          renderMarkers();
+        } else { alert('エラー: ' + (res.msg||'')); }
+      })
+      .catch(function(e){ alert('エラー: ' + e); });
+  } else {
+    _gasPost({action: 'addRow', data: { name:place.name, pref:place.pref, adr:place.adr, pid:place.pid, lat:place.lat, lng:place.lng, category:code, month:month, date:dateVal, memo:memo, officialUrl:officialUrl }})
+      .then(function(res) {
+        if (res.ok) {
+          var addBtn = document.querySelector('.btn-add');
+          if (addBtn) { addBtn.style.background = '#34a853'; addBtn.textContent = '✓ 追加しました'; }
+          setTimeout(function(){ infoWindow.close(); }, 1500);
+          allData.push({ rowIndex:res.rowIndex, name:place.name, pref:place.pref, adr:place.adr, date:dateVal, memo:memo, month:month, officialUrl:officialUrl, category:code, lat:place.lat, lng:place.lng, placeId:place.pid||'' });
+          renderMarkers();
+        } else { alert('エラー: ' + (res.msg||'')); }
+      })
+      .catch(function(e){ alert('エラー: ' + e); });
+  }
+}
+
+</script>
+<script>
+(function(){var l=document.createElement('link');l.rel='icon';l.type='image/svg+xml';l.href='data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🏮</text></svg>';document.head.appendChild(l);})();
+</script>
+</body>
+</html>
