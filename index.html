@@ -1341,21 +1341,21 @@ function initMap() {
   if (_cached) setupMarkers(_cached);
 
   // GitHubから最新データ取得（GASより高速）→ 失敗時はGASフォールバック
-  var _GH_DATA_URL = 'https://raw.githubusercontent.com/wherethereisawillthereisaway2026/matsuri-map-data/main/data.json';
-  fetch(_GH_DATA_URL + '?t=' + Date.now())
-    .then(function(r) {
-      if (!r.ok) throw new Error('http ' + r.status);
-      return r.json();
-    })
-    .then(function(data) {
-      if (data && data.length > 0) {
-        saveDataCache(data);
-        setupMarkers(data);
-      } else {
-        throw new Error('empty');
-      }
-    })
-    .catch(function() { console.error('CDNからのデータ取得失敗'); });
+  var _GH_DATA_URL   = 'https://raw.githubusercontent.com/wherethereisawillthereisaway2026/matsuri-map-data/main/data.json';
+  var _FES_SCHED_URL = 'https://raw.githubusercontent.com/wherethereisawillthereisaway2026/matsuri-map-data/main/fes_schedule.json';
+
+  Promise.all([
+    fetch(_GH_DATA_URL   + '?t=' + Date.now()).then(function(r){ if(!r.ok) throw new Error('main '+r.status); return r.json(); }),
+    fetch(_FES_SCHED_URL + '?t=' + Date.now()).then(function(r){ return r.ok ? r.json() : []; }).catch(function(){ return []; }),
+  ]).then(function(results) {
+    var mainData = results[0];
+    var fesData  = results[1];
+    if (!mainData || mainData.length === 0) throw new Error('empty');
+    var fesItems = fesData.map(function(item){ item._readonly = true; return item; });
+    var merged = mainData.concat(fesItems);
+    saveDataCache(merged);
+    setupMarkers(merged);
+  }).catch(function() { console.error('CDNからのデータ取得失敗'); });
 }
 
 function getMarkerKey(p) {
@@ -1381,10 +1381,27 @@ function createMarkerForPoint(p) {
   marker._item = p;
   
   marker.addListener('click', function() {
+    // スクレイパー由来のreadonly マーカー（fes_schedule.json）
+    if (p._readonly) {
+      var roDiv = document.createElement('div');
+      roDiv.style.cssText = 'line-height:1.7;min-width:200px;max-width:250px;font-size:13px;';
+      var roLink = p.officialUrl ? p.officialUrl : ('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(p.name + ' ' + p.pref));
+      var roTypeLabel = p.category === 2 ? '🎆 花火' : '🏮 祭り';
+      roDiv.innerHTML =
+        "<a href='" + roLink + "' target='_blank' style='color:#1a73e8;font-size:14px;font-weight:bold;text-decoration:none;'>" + (p.name||'') + "</a>"
+        + "<br><span style='color:#888;font-size:12px;'>📍 " + (p.pref||'') + " " + (p.city||p.adr||'') + (p.venue ? ' ' + p.venue : '') + "</span>"
+        + (p.date_start ? "<br><span style='font-size:12px;'>📅 " + p.date_start + (p.date_end && p.date_end !== p.date_start ? " 〜 " + p.date_end : '') + "</span>" : '')
+        + "<br><span style='font-size:11px;color:#aaa;'>" + roTypeLabel + " " + (p.month||'') + "月 (" + (p.source||'') + ")</span>"
+        + (p.officialUrl ? "<br><a href='" + p.officialUrl + "' target='_blank' style='font-size:12px;color:#1a73e8;'>公式ページ</a>" : '');
+      infoWindow.setContent(roDiv);
+      infoWindow.open(map, marker);
+      return;
+    }
+
     var categoryCode = p.category;
     var monthCode = p.month;
     var kindLabel = '';
-    
+
     if (categoryCode === 1 || categoryCode === 2) {
       kindLabel = CAT_LABELS[categoryCode] || '';
       if (monthCode >= 1 && monthCode <= 12) {
