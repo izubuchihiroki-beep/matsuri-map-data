@@ -1359,7 +1359,9 @@ function initMap() {
 }
 
 function getMarkerKey(p) {
-  return (p.source || '') + ':' + p.rowIndex;
+  if (p.rowIndex !== undefined) return (p.source || '') + ':' + p.rowIndex;
+  if (p.placeId) return (p.source || '') + ':pid:' + p.placeId;
+  return (p.source || '') + ':ll:' + (p.lat || '') + ',' + (p.lng || '');
 }
 
 function getMapUrl(p) {
